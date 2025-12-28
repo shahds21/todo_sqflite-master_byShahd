@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/task_controller.dart';
 import '../models/task_model.dart';
-import '../utils/theme.dart';
+import 'package:todo_sqflite/utils/theme.dart';
 import 'add_task_screen.dart';
 
 class TaskDetailScreen extends StatelessWidget {

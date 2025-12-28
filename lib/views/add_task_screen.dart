@@ -1,33 +1,40 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+
 import '../controllers/task_controller.dart';
 import '../models/task_model.dart';
-import '../utils/theme.dart';
+import '../models/category_model.dart';
+import 'package:todo_sqflite/utils/theme.dart';
 import '../widgets/input_field.dart';
+import '../db/db_helper.dart';
 
 class AddTaskScreen extends StatefulWidget {
   final Task? task;
-  const AddTaskScreen({Key? key, this.task}) : super(key: key);
+  const AddTaskScreen({super.key, this.task});
 
   @override
-  _AddTaskScreenState createState() => _AddTaskScreenState();
+  State<AddTaskScreen> createState() => _AddTaskScreenState();
 }
 
 class _AddTaskScreenState extends State<AddTaskScreen> {
   final TaskController _taskController = Get.find<TaskController>();
+
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _noteController = TextEditingController();
+
   DateTime _selectedDate = DateTime.now();
   String _selectedPriority = "Low";
   List<String> priorityList = ["Low", "Medium", "High"];
 
   String _selectedCategory = "Work";
-  List<String> categoryList = ["Work", "Personal", "Shopping", "Health"];
+  List<String> categoryList = [];
 
   @override
   void initState() {
     super.initState();
+    _loadCategoriesFromDb();
+
     if (widget.task != null) {
       _titleController.text = widget.task!.title ?? "";
       _noteController.text = widget.task!.description ?? "";
@@ -37,140 +44,124 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     }
   }
 
+  Future<void> _loadCategoriesFromDb() async {
+    final categories = await DBHelper.instance.getAllCategories();
+    if (!mounted) return;
+    setState(() {
+      categoryList = categories.isEmpty
+          ? ["Work", "Personal", "Shopping", "Health"]
+          : categories.map((c) => c.name).toList();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: context.theme.scaffoldBackgroundColor,
       appBar: _appBar(context),
-      body: Container(
-        padding: const EdgeInsets.only(left: 20, right: 20),
+      body: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                widget.task == null ? "Add Task" : "Edit Task",
+                widget.task == null
+                    ? 'add_task'.tr
+                    : 'edit_task'.tr,
                 style: headingStyle,
               ),
+
               MyInputField(
-                title: "Title",
-                hint: "Enter your title",
+                title: 'title'.tr,
+                hint: 'enter_title'.tr,
                 controller: _titleController,
               ),
+
               MyInputField(
-                title: "Description",
-                hint: "Enter your description",
+                title: 'description'.tr,
+                hint: 'enter_description'.tr,
                 controller: _noteController,
               ),
+
               MyInputField(
-                title: "Date",
+                title: 'date'.tr,
                 hint: DateFormat.yMd().format(_selectedDate),
                 widget: IconButton(
-                  icon: const Icon(Icons.calendar_today_outlined, color: Colors.grey),
-                  onPressed: () {
-                    _getDateFromUser();
-                  },
+                  icon: const Icon(Icons.calendar_today_outlined,
+                      color: Colors.grey),
+                  onPressed: _getDateFromUser,
                 ),
               ),
+
               Row(
                 children: [
                   Expanded(
                     child: MyInputField(
-                      title: "Priority",
+                      title: 'priority'.tr,
                       hint: _selectedPriority,
                       widget: DropdownButton<String>(
-                        icon: const Icon(
-                          Icons.keyboard_arrow_down,
-                          color: Colors.grey,
-                        ),
-                        iconSize: 32,
-                        elevation: 4,
-                        style: subTitleStyle,
-                        underline: Container(height: 0),
-                        onChanged: (String? newValue) {
-                          setState(() {
-                            _selectedPriority = newValue!;
-                          });
+                        underline: Container(),
+                        icon: const Icon(Icons.keyboard_arrow_down),
+                        value: _selectedPriority,
+                        onChanged: (value) {
+                          setState(() => _selectedPriority = value!);
                         },
                         items: priorityList
-                            .map<DropdownMenuItem<String>>((String value) {
-                          return DropdownMenuItem<String>(
-                            value: value,
-                            child: Text(
-                              value,
-                              style: const TextStyle(color: Colors.grey),
-                            ),
-                          );
-                        }).toList(),
+                            .map((e) => DropdownMenuItem(
+                          value: e,
+                          child: Text(e),
+                        ))
+                            .toList(),
                       ),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: MyInputField(
-                      title: "Category",
+                      title: 'category'.tr,
                       hint: _selectedCategory,
-                      // هنا سوّينا Row فيها Dropdown + زر +
-                      widget: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          DropdownButton<String>(
-                            icon: const Icon(
-                              Icons.keyboard_arrow_down,
-                              color: Colors.grey,
-                            ),
-                            iconSize: 32,
-                            elevation: 4,
-                            style: subTitleStyle,
-                            underline: Container(height: 0),
-                            onChanged: (String? newValue) {
-                              setState(() {
-                                _selectedCategory = newValue!;
-                              });
-                            },
-                            items: categoryList
-                                .map<DropdownMenuItem<String>>((String value) {
-                              return DropdownMenuItem<String>(
-                                value: value,
-                                child: Text(
-                                  value,
-                                  style: const TextStyle(color: Colors.grey),
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.add, color: Colors.grey),
-                            onPressed: _showAddCategoryDialog,
-                            tooltip: 'Add new category',
-                          ),
-                        ],
+                      widget: DropdownButton<String>(
+                        underline: Container(),
+                        icon: const Icon(Icons.keyboard_arrow_down),
+                        value: _selectedCategory,
+                        onChanged: (value) {
+                          setState(() => _selectedCategory = value!);
+                        },
+                        items: categoryList
+                            .map((e) => DropdownMenuItem(
+                          value: e,
+                          child: Text(e),
+                        ))
+                            .toList(),
                       ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 18),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  GestureDetector(
-                    onTap: () => _validateDate(),
-                    child: Container(
-                      width: 120,
-                      height: 60,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(20),
-                        color: primaryClr,
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        widget.task == null ? "Create Task" : "Update Task",
-                        style: const TextStyle(color: Colors.white),
-                      ),
+
+              const SizedBox(height: 20),
+
+              Align(
+                alignment: Alignment.centerRight,
+                child: GestureDetector(
+                  onTap: _validateData,
+                  child: Container(
+                    width: 140,
+                    height: 55,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      color: primaryClr,
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      widget.task == null
+                          ? 'create_task'.tr
+                          : 'update_task'.tr,
+                      style: const TextStyle(color: Colors.white),
                     ),
                   ),
-                ],
+                ),
               ),
             ],
           ),
@@ -179,31 +170,19 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     );
   }
 
-  _validateDate() {
-    if (_titleController.text.isNotEmpty && _noteController.text.isNotEmpty) {
-      if (widget.task == null) {
-        _addTaskToDb();
-      } else {
-        _updateTaskInDb();
-      }
+  void _validateData() {
+    if (_titleController.text.isNotEmpty &&
+        _noteController.text.isNotEmpty) {
+      widget.task == null ? _addTaskToDb() : _updateTaskInDb();
       Get.back();
-    } else {
-      Get.snackbar(
-        "Required",
-        "All fields are required !",
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.white,
-        colorText: pinkClr,
-        icon: const Icon(Icons.warning_amber_rounded, color: Colors.red),
-      );
     }
   }
 
-  _addTaskToDb() async {
-    int value = await _taskController.addTask(
+  Future<void> _addTaskToDb() async {
+    await _taskController.addTask(
       task: Task(
-        description: _noteController.text,
         title: _titleController.text,
+        description: _noteController.text,
         isCompleted: 0,
         category: _selectedCategory,
         priority: _selectedPriority,
@@ -211,15 +190,14 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
         createdAt: DateTime.now().toString(),
       ),
     );
-    print("My id is $value");
   }
 
-  _updateTaskInDb() async {
+  Future<void> _updateTaskInDb() async {
     await _taskController.updateTaskInfo(
       Task(
         id: widget.task!.id,
-        description: _noteController.text,
         title: _titleController.text,
+        description: _noteController.text,
         isCompleted: widget.task!.isCompleted,
         category: _selectedCategory,
         priority: _selectedPriority,
@@ -233,84 +211,23 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     return AppBar(
       elevation: 0,
       backgroundColor: context.theme.scaffoldBackgroundColor,
-      leading: GestureDetector(
-        onTap: () {
-          Get.back();
-        },
-        child: Icon(
-          Icons.arrow_back_ios,
-          size: 20,
-          color: Get.isDarkMode ? Colors.white : Colors.black,
-        ),
+      leading: IconButton(
+        icon: Icon(Icons.arrow_back_ios,
+            color: Get.isDarkMode ? Colors.white : Colors.black),
+        onPressed: () => Get.back(),
       ),
-      actions: [
-        CircleAvatar(
-          child: const Icon(Icons.person),
-          backgroundColor: Colors.grey[200],
-        ),
-        const SizedBox(width: 20),
-      ],
     );
   }
 
-  _getDateFromUser() async {
-    DateTime? _pickerDate = await showDatePicker(
+  Future<void> _getDateFromUser() async {
+    DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: DateTime.now(),
+      initialDate: _selectedDate,
       firstDate: DateTime(2015),
       lastDate: DateTime(2121),
     );
-
-    if (_pickerDate != null) {
-      setState(() {
-        _selectedDate = _pickerDate;
-      });
-    } else {
-      print("it's null or something is wrong");
+    if (picked != null) {
+      setState(() => _selectedDate = picked);
     }
-  }
-
-  // 🆕 Dialog لإضافة Category جديد
-  void _showAddCategoryDialog() {
-    final TextEditingController _categoryController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: const Text('Add Category'),
-          content: TextField(
-            controller: _categoryController,
-            decoration: const InputDecoration(
-              hintText: 'Category name',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(ctx).pop();
-              },
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final newCategory = _categoryController.text.trim();
-                if (newCategory.isEmpty) return;
-
-                setState(() {
-                  // نضيف في أول القائمة
-                  categoryList.insert(0, newCategory);
-                  _selectedCategory = newCategory;
-                });
-
-                Navigator.of(ctx).pop();
-              },
-              child: const Text('Save'),
-            ),
-          ],
-        );
-      },
-    );
   }
 }
